@@ -1,0 +1,118 @@
+#!/usr/bin/env php
+<?php
+// Check requirements
+if (strtoupper(substr(PHP_OS, 0, 3)) === "WIN") {
+    echo "This script cannot run under the Windows!";
+    exit(1);
+}
+
+if (!function_exists('shell_exec')) {
+    echo "This script needs 'shell_exec' function. Please be sure to allowed 'shell_exec'!";
+    exit(1);
+}
+
+// Regex Patterns to parsing versions
+$pattern = "@[0-9]+\.[0-9]+\.[0-9]+@";
+$short_pattern = "@[0-9]+\.[0-9]@";
+
+// Functions
+function getWebservers()
+{
+    global $pattern;
+
+    $webservers = ["Nginx" => shell_exec("nginx -v 2>&1"), "Apache" => shell_exec("apachectl -v 2>&1"),
+        "Lighttpd" => shell_exec("lighttpd -v 2>&1"), "RoadRunner" => shell_exec("rr -v 2>&1"), "Caddy" => shell_exec("caddy version 2>&1")];
+
+    foreach ($webservers as $key => $output) {
+        preg_match($pattern, $output, $webservers[$key]);
+    }
+
+    $webserversLast = [];
+    foreach ($webservers as $name => $webserver) {
+        if (isset($webserver[0])) {
+            array_push($webserversLast, $name . ": " . $webserver[0]);
+        }
+    }
+
+    return implode(", ", $webserversLast);
+}
+
+function getDatabases()
+{
+    global $pattern, $short_pattern;
+
+    $databases = ["MySQL" => [shell_exec('mysql -V 2>&1'), $pattern], "MongoDB" => [shell_exec('mongo --version 2>&1'), $pattern], "PostgreSQL" => [shell_exec('pg_ctl -V 2>&1'), $short_pattern]];
+
+    foreach ($databases as $key => $output) {
+        preg_match($output[1], $output[0], $databases[$key]);
+    }
+
+    $databasesLast = [];
+    foreach ($databases as $name => $database) {
+        if (isset($database[0])) {
+            array_push($databasesLast, $name . ": " . $database[0]);
+        }
+    }
+
+    return implode(", ", $databasesLast);
+}
+
+function getOSInformation()
+{
+    $osRelease = fopen("/etc/os-release", "r");
+    $osRelease = explode("\n", fread($osRelease, filesize("/etc/os-release")));
+    $osRelease = array_filter($osRelease);
+    $items = [];
+    foreach ($osRelease as $item) {
+        $item = explode("=", $item);
+        $key = str_replace(array('\'', '"', ',', ';', '<', '>'), '', $item[0]);
+        $value = str_replace(array('\'', '"', ',', ';', '<', '>'), '', $item[1]);
+
+        $items[mb_strtolower($key)] = $value;
+    }
+
+    return $items;
+}
+
+function getMemoryUsage()
+{
+    $free = array_filter(explode("\n", shell_exec("free")))[1];
+    $total = (int)(array_values(array_filter(explode(" ", $free)))[1] / 1000);
+    $using = (int)(array_values(array_filter(explode(" ", $free)))[2] / 1000);
+
+    return $using . "MiB / " . $total . "MiB";
+}
+
+// Read ASCII Art Logo
+$ascii_logo = fopen('logo.txt', 'r');
+$ascii_logo = fread($ascii_logo, filesize('logo.txt') + 10);
+$ascii_logo = str_replace('{color} ', '\e[31m', $ascii_logo);
+$ascii_logo = explode("\n", $ascii_logo);
+
+// Info List
+$infoList = [
+    "\e[31m" . getenv('USER') . '@' . rtrim(shell_exec('hostname')) . "\e[39m",
+    "\e[39m-------------",
+    "\e[31mPHP Version: \e[39m" . phpversion(),
+    "\e[31mZend Engine Version: \e[39m" . zend_version(),
+    "\e[31mWebserver(s): \e[39m " . getWebservers(),
+    "\e[31mDatabase(s): \e[39m" . getDatabases(),
+    "\e[31mUptime: \e[39m" . rtrim(str_replace('up ', '', shell_exec('uptime -p'))),
+    "\e[31mOperating System: \e[39m" . rtrim(getOSInformation()["name"] . " " . shell_exec("uname -m")),
+    "\e[31mKernel: \e[39m" . php_uname('r'),
+    "\e[31mCPU: \e[39m" . rtrim(shell_exec("cat /proc/cpuinfo | grep 'model name' | uniq | cut -f2 -d':'")),
+    "\e[31mMemory Usage: \e[39m" . getMemoryUsage() . "\n",
+];
+
+// Get needing column count by keys
+$columnCount = count($infoList) >= count($ascii_logo) ? count($infoList) : count($ascii_logo);
+
+// Print logo and info list
+for ($i = 0; $i <= $columnCount; $i++) {
+    if (isset($ascii_logo[$i])) {
+        echo "\n" . $ascii_logo[$i];
+    }
+    if (isset($infoList[$i])) {
+        echo $infoList[$i];
+    }
+}
