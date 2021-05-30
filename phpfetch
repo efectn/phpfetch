@@ -60,7 +60,7 @@ function getDatabases()
 function getOSInformation()
 {
     $osRelease = fopen("/etc/os-release", "r");
-    $osRelease = explode("\n", fread($osRelease, filesize("/etc/os-release")));
+    $osRelease = explode("\n", fread($osRelease, filesize("/etc/os-release") + 10));
     $osRelease = array_filter($osRelease);
     $items = [];
     foreach ($osRelease as $item) {
@@ -83,6 +83,17 @@ function getMemoryUsage()
     return $using . "MiB / " . $total . "MiB";
 }
 
+function getUptime()
+{
+    $uptime = fopen('/proc/uptime', 'r');
+    $uptime = ((int)floatval(fread($uptime, filesize('/proc/uptime') + 10))) / 60;
+    $minutes = $uptime % 60;
+    $uptime /= 60;
+    $hours = $uptime % 24;
+
+    return $hours . " hours, " . $minutes . " minutes";
+}
+
 // Read ASCII Art Logo
 $ascii_logo = fopen('logo.txt', 'r');
 $ascii_logo = fread($ascii_logo, filesize('logo.txt') + 10);
@@ -97,7 +108,7 @@ $infoList = [
     "\e[31mZend Engine Version: \e[39m" . zend_version(),
     "\e[31mWebserver(s): \e[39m " . getWebservers(),
     "\e[31mDatabase(s): \e[39m" . getDatabases(),
-    "\e[31mUptime: \e[39m" . rtrim(str_replace('up ', '', shell_exec('uptime -p'))),
+    "\e[31mUptime: \e[39m" . getUptime(),
     "\e[31mOperating System: \e[39m" . rtrim(getOSInformation()["name"] . " " . shell_exec("uname -m")),
     "\e[31mKernel: \e[39m" . php_uname('r'),
     "\e[31mCPU: \e[39m" . rtrim(shell_exec("cat /proc/cpuinfo | grep 'model name' | uniq | cut -f2 -d':'")),
