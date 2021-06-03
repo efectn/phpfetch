@@ -1,11 +1,11 @@
-DESTDIR=/
+PREFIX=/usr/local
 
 all: install
 
 install:
-	mkdir -p $(DESTDIR)/usr/bin/ || true
-	mkdir -p $(DESTDIR)/usr/lib/phpfetch/ || true
+	mkdir -p $(PREFIX)/bin/ || true
+	mkdir -p $(PREFIX)/lib/phpfetch/ || true
 	
-	install phpfetch $(DESTDIR)/usr/bin/phpfetch
-	install logo.txt $(DESTDIR)/usr/lib/phpfetch/logo.txt
-	sed -i 's|logo.txt|/usr/lib/phpfetch/logo.txt|g' $(DESTDIR)/usr/bin/phpfetch
+	install phpfetch $(PREFIX)/bin/phpfetch
+	install logo.txt $(PREFIX)/lib/phpfetch/logo.txt
+	sed -i 's|logo.txt|$(PREFIX)/lib/phpfetch/logo.txt|g' $(PREFIX)/bin/phpfetch
